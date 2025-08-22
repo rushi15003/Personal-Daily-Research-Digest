@@ -1,0 +1,27 @@
+# Core Frameworks
+langchain
+langchain-community
+langgraph
+langchain-groq
+
+# API & HTTP
+requests
+httpx
+python-dotenv
+lxml_html_clean
+
+# Data Handling & Validation
+pydantic
+
+# News & Web Scraping
+newspaper3k
+serpapi
+google-search-results
+
+# PDF Generation
+reportlab
+
+# Backend API
+fastapi
+uvicorn
+python-multipart
