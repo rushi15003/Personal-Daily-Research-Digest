@@ -18,7 +18,7 @@ It combines **LangGraph-driven orchestration** with specialized AI agents to fet
 ---
 
 ## 🏗️ Project Structure  
-
+```bash
 personal-newsroom-editor/
 │── README.md # Project overview
 │── requirements.txt # Python dependencies
@@ -50,7 +50,7 @@ personal-newsroom-editor/
 │ ├── index.html
 │ ├── styles.css
 │ └── script.js
-
+```
 ---
 
 ## 📊 Workflow  
