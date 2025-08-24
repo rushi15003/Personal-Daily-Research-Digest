@@ -1,11 +1,11 @@
 # src/agents/curator.py
 import os
-from typing import List
+from typing import List, Dict, Any 
 from serpapi import GoogleSearch
 from newspaper import Article as NewspaperArticle
 from dotenv import load_dotenv
+import json  
 
-# Import our shared model
 from src.models import Article
 
 load_dotenv()
@@ -28,39 +28,55 @@ class CuratorAgent:
         }
         search = GoogleSearch(search_params)
         results = search.get_dict()
-        news_items = results.get("news_results", [])[:max_articles] # Limit results
 
+        news_items = results.get("news_results", [])
+        print(f"SerpAPI returned {len(news_items)} raw items.")
+        
         articles = []
-        # 2. For each URL, use newspaper3k to get the full text
+        processed_count = 0
+        
+        # 2. For each item, try to extract a URL and parse it
         for item in news_items:
+            if processed_count >= max_articles:
+                break
+                
+            # Get the URL using .get() to avoid KeyError. Try common keys.
+            url = item.get('link') or item.get('url') or item.get('source', {}).get('link')
+            if not url:
+                print(f"⚠️ Skipping item with no available URL: {item.get('title', 'No Title')}")
+                continue
+            
+            # Get a title for logging
+            title = item.get('title', 'No Title')
+            print(f"⏳ ({processed_count+1}/{max_articles}) Parsing: {title}")
+            
             try:
-                print(f"⏳ Parsing: {item.get('title', 'No title')}")
-                npp_article = NewspaperArticle(item['link'])
+                npp_article = NewspaperArticle(url)
                 npp_article.download()
                 npp_article.parse()
 
+                # DEBUG: Check if we actually got text
+                if not npp_article.text or len(npp_article.text.strip()) < 50:
+                    print(f"⚠️ Article '{title}' has insufficient text ({len(npp_article.text or '')} chars). Skipping.")
+                    continue
+
                 # 3. Create our own Article object
                 article = Article(
-                    title=item.get('title', npp_article.title),
-                    url=item['link'],
+                    title=title,
+                    url=url,
                     source=item.get('source', {}).get('name', 'Unknown'),
                     published_date=item.get('date', None),
-                    raw_text=npp_article.text # This is the key step!
+                    raw_text=npp_article.text
                 )
                 articles.append(article)
+                processed_count += 1
+                print(f"✅ Successfully parsed article: {title} ({len(npp_article.text)} chars)")
+                
             except Exception as e:
                 # Don't crash the whole pipeline if one article fails!
-                print(f"❌ Failed to parse article {item.get('link')}: {e}")
+                print(f"❌ Failed to parse article '{title}' ({url}): {e}")
                 continue
 
-        print(f"✅ Curator found {len(articles)} valid articles.")
+        print(f"✅ Curator successfully parsed {len(articles)} out of {max_articles} requested articles.")
         return articles
 
-# Simple test function
-if __name__ == "__main__":
-    curator = CuratorAgent()
-    articles = curator.fetch_articles("AI news", max_articles=3)
-    for article in articles:
-        print(f"\n--- {article.title} ---")
-        print(f"Source: {article.source}")
-        print(f"Text Preview: {article.raw_text[:200]}...")
