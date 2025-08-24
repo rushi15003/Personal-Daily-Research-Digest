@@ -1,7 +1,7 @@
 # src/agents/curator.py
 import os
-from typing import List, Dict, Any 
-from serpapi.google_search import GoogleSearch
+from typing import List
+from serpapi import GoogleSearch
 from newspaper import Article as NewspaperArticle
 from dotenv import load_dotenv
 import json  
