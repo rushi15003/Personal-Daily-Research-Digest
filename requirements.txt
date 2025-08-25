@@ -9,6 +9,8 @@ requests
 httpx
 python-dotenv
 lxml_html_clean
+python-whois
+tldextract
 
 # Data Handling & Validation
 pydantic

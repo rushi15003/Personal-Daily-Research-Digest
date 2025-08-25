@@ -4,12 +4,10 @@ from langgraph.graph import StateGraph, END
 from src.models import DigestState
 from src.agents.curator import CuratorAgent
 from src.agents.summarizer import SummarizerAgent
-from src.agents.sentiment_analyzer import SentimentAnalyzerAgent
 
 # Initialize the agents that will be our graph nodes
 curator_agent = CuratorAgent()
 summarizer_agent = SummarizerAgent()
-sentiment_analyzer_agent = SentimentAnalyzerAgent()
 
 def curator_node(state: DigestState) -> dict:
     """Node function to fetch and parse articles."""
@@ -17,7 +15,7 @@ def curator_node(state: DigestState) -> dict:
     print("🤖 Curator Agent Working...")
     print("="*30)
     
-    articles = curator_agent.fetch_articles(state.query, max_articles=10)
+    articles = curator_agent.fetch_articles(state.query, max_articles=3)
     return {"articles": articles}
 
 def summarizer_node(state: DigestState) -> dict:
@@ -51,20 +49,9 @@ def summarizer_node(state: DigestState) -> dict:
     print(f"\n Summary: Created {len(new_summaries)} summaries from {len(state.articles)} articles")
     return {"summaries": new_summaries}
 
-def sentiment_analyzer_node(state: DigestState) -> dict:
-    """Node function to analyze sentiment of all summaries."""
-    print("\n" + "="*30)
-    print(" Sentiment Analyzer Agent Working...")
-    print("="*30)
-    
-    if not state.summaries:
-        print("⚠️ No summaries to analyze")
-        return {}
-    
-    # Analyze sentiment for all summaries
-    analyzed_summaries = sentiment_analyzer_agent.analyze_batch(state.summaries)
-    
-    return {"summaries": analyzed_summaries}
+
+
+# Removed separate sentiment node; summarizer now includes sentiment
 
 # --- Define the Graph ---
 workflow = StateGraph(DigestState)
@@ -72,13 +59,12 @@ workflow = StateGraph(DigestState)
 # Add the nodes
 workflow.add_node("curator", curator_node)
 workflow.add_node("summarizer", summarizer_node)
-workflow.add_node("sentiment_analyzer", sentiment_analyzer_node)
 
 # Define the flow: Start -> Curator -> Summarizer -> Sentiment Analyzer -> End
 workflow.set_entry_point("curator")
 workflow.add_edge("curator", "summarizer")
-workflow.add_edge("summarizer", "sentiment_analyzer")
-workflow.add_edge("sentiment_analyzer", END)
+workflow.add_edge("summarizer", END)
+
 
 # Compile the graph
 app = workflow.compile()

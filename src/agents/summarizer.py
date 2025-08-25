@@ -30,8 +30,11 @@ class SummarizerAgent:
             separators=["\n\n", "\n", ". ", " ", ""]
         )
         
-        # Define the chain: Prompt -> LLM -> String Output
+        # Define the chains
+        # - Summarization chain: Prompt -> LLM -> String Output
+        # - Sentiment chain: Prompt -> LLM -> String (JSON) Output
         self.chain = self._create_chain()
+        self.sentiment_chain = self._create_sentiment_chain()
 
     def _create_chain(self):
         """Creates the LangChain LCEL chain for summarization."""
@@ -48,6 +51,26 @@ class SummarizerAgent:
         {article_text}
 
         Summary (one complete sentence):
+        """
+        prompt = ChatPromptTemplate.from_template(prompt_template)
+        return prompt | self.llm | StrOutputParser()
+
+    def _create_sentiment_chain(self):
+        """Creates the chain that returns sentiment and confidence for a summary (JSON only)."""
+        prompt_template = """
+        You are an expert sentiment analyst specializing in news content. Analyze the sentiment of the following one-sentence news summary and return ONLY a JSON object.
+
+        Sentiment must be one of: positive, negative, neutral, mixed.
+        Confidence must be one of: high, medium, low.
+
+        Summary:
+        {summary_text}
+
+        Return ONLY JSON:
+        {{
+          "sentiment": "positive" | "negative" | "neutral" | "mixed",
+          "confidence": "high" | "medium" | "low"
+        }}
         """
         prompt = ChatPromptTemplate.from_template(prompt_template)
         return prompt | self.llm | StrOutputParser()
@@ -127,11 +150,29 @@ class SummarizerAgent:
             # Use smart summarization that only chunks when necessary
             summary_text = self._smart_summarize(article.raw_text)
             
-            # Create ArticleSummary without sentiment (will be analyzed separately)
+            # Analyze sentiment and confidence for the generated summary
+            try:
+                import json
+                raw = self.sentiment_chain.invoke({"summary_text": summary_text})
+                data = json.loads(raw)
+                sentiment = str(data.get("sentiment", "neutral")).lower()
+                confidence = str(data.get("confidence", "medium")).lower()
+                if sentiment not in {"positive", "negative", "neutral", "mixed"}:
+                    sentiment = "neutral"
+                if confidence not in {"high", "medium", "low"}:
+                    confidence = "medium"
+            except Exception as e:
+                print(f"⚠️ Sentiment analysis failed, defaulting: {e}")
+                sentiment = "neutral"
+                confidence = "low"
+
+            # Create ArticleSummary with sentiment and confidence
             return ArticleSummary(
                 article_id=article.id,
                 summary=summary_text.strip(),
-                sentiment="pending"  # Will be updated by sentiment analyzer
+                sentiment=sentiment,
+                sentiment_confidence=confidence,
+                sentiment_reason=None
             )
             
         except Exception as e:

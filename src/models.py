@@ -18,6 +18,8 @@ class ArticleSummary(BaseModel):
     article_id: str 
     summary: str
     sentiment: str 
+    sentiment_confidence: Optional[str] = None
+    sentiment_reason: Optional[str] = None
 
 
 class DigestState(BaseModel):
