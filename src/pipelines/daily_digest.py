@@ -9,7 +9,7 @@ def main():
     print("🌅 Generating Your Daily Research Digest")
     print("="*55)
     
-    query = "Indian Independence Day" 
+    query = "Murder" 
     final_state = run_digest_pipeline(query)
     
     print("\n" + "📄 DIGEST REPORT" + "\n" + "-"*40)
@@ -25,7 +25,12 @@ def main():
         title = article.title if article else "Unknown Title"
         print(f"\n📌 {title}")
         print(f"   💡 {summary.summary}")
-        print(f"   🎭 Sentiment: {summary.sentiment}")
+        extras = []
+        if getattr(summary, 'sentiment_confidence', None):
+            extras.append(f"confidence={summary.sentiment_confidence}")
+        extras_str = f" ({', '.join(extras)})" if extras else ""
+        print(f"   🎭 Sentiment: {summary.sentiment}{extras_str}")
+
 
 if __name__ == "__main__":
     main()
