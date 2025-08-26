@@ -4,10 +4,12 @@ from langgraph.graph import StateGraph, END
 from src.models import DigestState
 from src.agents.curator import CuratorAgent
 from src.agents.summarizer import SummarizerAgent
+from src.agents.insight_agent import InsightAgent
 
 # Initialize the agents that will be our graph nodes
 curator_agent = CuratorAgent()
 summarizer_agent = SummarizerAgent()
+insight_agent = InsightAgent()
 
 def curator_node(state: DigestState) -> dict:
     """Node function to fetch and parse articles."""
@@ -50,8 +52,25 @@ def summarizer_node(state: DigestState) -> dict:
     return {"summaries": new_summaries}
 
 
+def insights_node(state: DigestState) -> dict:
+    """Node function to extract actionable insights from full articles."""
+    print("\n" + "="*30)
+    print("💡 Insights Agent Working...")
+    print("="*30)
 
-# Removed separate sentiment node; summarizer now includes sentiment
+    new_insights = []
+    for article in state.articles:
+        result = insight_agent.analyze(article)
+        if result:
+            new_insights.append(result)
+            print(f"✅ Insights created for: {article.title}")
+        else:
+            print(f"⚠️ No insights produced for: {article.title}")
+
+    print(f"\n Insights: Created {len(new_insights)} insight records from {len(state.articles)} articles")
+    return {"insights": new_insights}
+
+
 
 # --- Define the Graph ---
 workflow = StateGraph(DigestState)
@@ -59,10 +78,12 @@ workflow = StateGraph(DigestState)
 # Add the nodes
 workflow.add_node("curator", curator_node)
 workflow.add_node("summarizer", summarizer_node)
+workflow.add_node("insights", insights_node)
 
 # Define the flow: Start -> Curator -> Summarizer -> Sentiment Analyzer -> End
 workflow.set_entry_point("curator")
-workflow.add_edge("curator", "summarizer")
+workflow.add_edge("curator", "insights")
+workflow.add_edge("insights", "summarizer")
 workflow.add_edge("summarizer", END)
 
 

@@ -22,6 +22,15 @@ class ArticleSummary(BaseModel):
     sentiment_reason: Optional[str] = None
 
 
+class ArticleInsight(BaseModel):
+    """Actionable insights derived from the full article text (not the summary)."""
+    article_id: str
+    insights: List[str]
+    categories: Optional[List[str]] = None
+    confidence: Optional[str] = None  # high | medium | low
+    rationale: Optional[str] = None
+
+
 class DigestState(BaseModel):
     """The shared state for the daily digest workflow."""
     # The input from the user/trigger
@@ -33,6 +42,7 @@ class DigestState(BaseModel):
     # The core data produced by each node/agent
     articles: List[Article] = Field(default_factory=list)
     summaries: List[ArticleSummary] = Field(default_factory=list)
+    insights: List[ArticleInsight] = Field(default_factory=list)
     
     # The final output
     report_markdown: str = ""
