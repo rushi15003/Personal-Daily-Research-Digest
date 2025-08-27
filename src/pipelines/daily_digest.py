@@ -9,7 +9,7 @@ def main():
     print("🌅 Generating Your Daily Research Digest")
     print("="*55)
     
-    query = "Murder" 
+    query = "Washington D.C." 
     final_state = run_digest_pipeline(query)
     
     print("\n" + "📄 DIGEST REPORT" + "\n" + "-"*40)
@@ -17,6 +17,8 @@ def main():
     print(f"Number of Articles: {len(final_state.get('articles', []))}")
     print(f"Number of Summaries: {len(final_state.get('summaries', []))}")
     print(f"Number of Insight Records: {len(final_state.get('insights', []))}")
+    if final_state.get('report_path'):
+        print(f"Report: {final_state.get('report_path')}")
 
     summaries = final_state.get('summaries', [])
     articles = final_state.get('articles', [])
