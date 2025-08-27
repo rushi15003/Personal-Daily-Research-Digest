@@ -5,11 +5,15 @@ from src.models import DigestState
 from src.agents.curator import CuratorAgent
 from src.agents.summarizer import SummarizerAgent
 from src.agents.insight_agent import InsightAgent
+from src.utils.pdf_generator import generate_daily_report
+from src.agents.drive_upload import DriveUploadAgent
+import os
 
 # Initialize the agents that will be our graph nodes
 curator_agent = CuratorAgent()
 summarizer_agent = SummarizerAgent()
 insight_agent = InsightAgent()
+drive_agent = DriveUploadAgent()
 
 def curator_node(state: DigestState) -> dict:
     """Node function to fetch and parse articles."""
@@ -17,7 +21,7 @@ def curator_node(state: DigestState) -> dict:
     print("🤖 Curator Agent Working...")
     print("="*30)
     
-    articles = curator_agent.fetch_articles(state.query, max_articles=3)
+    articles = curator_agent.fetch_articles(state.query, max_articles=1)
     return {"articles": articles}
 
 def summarizer_node(state: DigestState) -> dict:
@@ -79,12 +83,51 @@ workflow = StateGraph(DigestState)
 workflow.add_node("curator", curator_node)
 workflow.add_node("summarizer", summarizer_node)
 workflow.add_node("insights", insights_node)
+def report_node(state: DigestState) -> dict:
+    """Generate the final PDF report from articles, summaries, and insights."""
+    print("\n" + "="*30)
+    print("📄 PDF Generator Working...")
+    print("="*30)
+
+    try:
+        report_path = generate_daily_report(
+            articles=state.articles,
+            summaries=state.summaries,
+            insights=state.insights,
+            output_dir="data/reports",
+            report_title=f"Daily Research Digest - {state.query}",
+        )
+        print(f"✅ Report generated at: {report_path}")
+        return {"report_path": report_path}
+    except Exception as e:
+        print(f"❌ Failed to generate report: {e}")
+        return {"report_path": ""}
 
 # Define the flow: Start -> Curator -> Summarizer -> Sentiment Analyzer -> End
 workflow.set_entry_point("curator")
 workflow.add_edge("curator", "insights")
 workflow.add_edge("insights", "summarizer")
-workflow.add_edge("summarizer", END)
+workflow.add_node("report", report_node)
+workflow.add_edge("summarizer", "report")
+def drive_upload_node(state: DigestState) -> dict:
+    """Upload the generated report to Google Drive."""
+    print("\n" + "="*30)
+    print("☁️ Drive Upload Agent Working...")
+    print("="*30)
+    if not state.report_path:
+        print("⚠️ No report path found; skipping upload.")
+        return {}
+    try:
+        drive_folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID", "")
+        file_id = drive_agent.upload_report(state.report_path, drive_folder_id or None)
+        return {"drive_file_id": file_id or ""}
+    except Exception as e:
+        print(f"❌ Drive upload failed: {e}")
+        return {"drive_file_id": ""}
+
+workflow.add_node("drive_upload", drive_upload_node)
+workflow.add_edge("report", "drive_upload")
+workflow.add_edge("drive_upload", END)
 
 
 # Compile the graph

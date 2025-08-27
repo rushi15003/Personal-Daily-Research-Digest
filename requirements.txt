@@ -9,8 +9,7 @@ requests
 httpx
 python-dotenv
 lxml_html_clean
-python-whois
-tldextract
+
 
 # Data Handling & Validation
 pydantic
@@ -27,3 +26,8 @@ reportlab
 fastapi
 uvicorn
 python-multipart
+
+# Google Drive
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib

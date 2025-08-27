@@ -46,3 +46,5 @@ class DigestState(BaseModel):
     
     # The final output
     report_markdown: str = ""
+    report_path: str = ""
+    drive_file_id: str = ""
