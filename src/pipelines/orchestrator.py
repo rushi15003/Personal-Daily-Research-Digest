@@ -7,6 +7,7 @@ from src.agents.summarizer import SummarizerAgent
 from src.agents.insight_agent import InsightAgent
 from src.utils.pdf_generator import generate_daily_report
 from src.agents.drive_upload import DriveUploadAgent
+from src.agents.calendar_agent import CalendarAgent
 import os
 
 # Initialize the agents that will be our graph nodes
@@ -14,6 +15,7 @@ curator_agent = CuratorAgent()
 summarizer_agent = SummarizerAgent()
 insight_agent = InsightAgent()
 drive_agent = DriveUploadAgent()
+calendar_agent = CalendarAgent()
 
 def curator_node(state: DigestState) -> dict:
     """Node function to fetch and parse articles."""
@@ -23,6 +25,24 @@ def curator_node(state: DigestState) -> dict:
     
     articles = curator_agent.fetch_articles(state.query, max_articles=1)
     return {"articles": articles}
+
+def insights_node(state: DigestState) -> dict:
+    """Node function to extract actionable insights from full articles."""
+    print("\n" + "="*30)
+    print("💡 Insights Agent Working...")
+    print("="*30)
+
+    new_insights = []
+    for article in state.articles:
+        result = insight_agent.analyze(article)
+        if result:
+            new_insights.append(result)
+            print(f"✅ Insights created for: {article.title}")
+        else:
+            print(f"⚠️ No insights produced for: {article.title}")
+
+    print(f"\n Insights: Created {len(new_insights)} insight records from {len(state.articles)} articles")
+    return {"insights": new_insights}
 
 def summarizer_node(state: DigestState) -> dict:
     """Node function to summarize all articles in the state."""
@@ -55,34 +75,6 @@ def summarizer_node(state: DigestState) -> dict:
     print(f"\n Summary: Created {len(new_summaries)} summaries from {len(state.articles)} articles")
     return {"summaries": new_summaries}
 
-
-def insights_node(state: DigestState) -> dict:
-    """Node function to extract actionable insights from full articles."""
-    print("\n" + "="*30)
-    print("💡 Insights Agent Working...")
-    print("="*30)
-
-    new_insights = []
-    for article in state.articles:
-        result = insight_agent.analyze(article)
-        if result:
-            new_insights.append(result)
-            print(f"✅ Insights created for: {article.title}")
-        else:
-            print(f"⚠️ No insights produced for: {article.title}")
-
-    print(f"\n Insights: Created {len(new_insights)} insight records from {len(state.articles)} articles")
-    return {"insights": new_insights}
-
-
-
-# --- Define the Graph ---
-workflow = StateGraph(DigestState)
-
-# Add the nodes
-workflow.add_node("curator", curator_node)
-workflow.add_node("summarizer", summarizer_node)
-workflow.add_node("insights", insights_node)
 def report_node(state: DigestState) -> dict:
     """Generate the final PDF report from articles, summaries, and insights."""
     print("\n" + "="*30)
@@ -103,12 +95,34 @@ def report_node(state: DigestState) -> dict:
         print(f"❌ Failed to generate report: {e}")
         return {"report_path": ""}
 
-# Define the flow: Start -> Curator -> Summarizer -> Sentiment Analyzer -> End
-workflow.set_entry_point("curator")
-workflow.add_edge("curator", "insights")
-workflow.add_edge("insights", "summarizer")
-workflow.add_node("report", report_node)
-workflow.add_edge("summarizer", "report")
+def calendar_node(state: DigestState) -> dict:
+    """Create a calendar event for the completed report."""
+    print("\n" + "="*30)
+    print("📅 Calendar Agent Working...")
+    print("="*30)
+    
+    if not state.report_path:
+        print("⚠️ No report path found; skipping calendar event creation.")
+        return {}
+    
+    try:
+        from datetime import datetime
+        generation_time = datetime.now()
+        report_name = os.path.basename(state.report_path)
+        
+        calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "primary")
+        event_id = calendar_agent.create_report_event(
+            report_name=report_name,
+            generation_time=generation_time,
+            calendar_id=calendar_id
+        )
+        
+        return {"calendar_event_id": event_id or ""}
+        
+    except Exception as e:
+        print(f"❌ Calendar event creation failed: {e}")
+        return {"calendar_event_id": ""}
+
 def drive_upload_node(state: DigestState) -> dict:
     """Upload the generated report to Google Drive."""
     print("\n" + "="*30)
@@ -125,10 +139,25 @@ def drive_upload_node(state: DigestState) -> dict:
         print(f"❌ Drive upload failed: {e}")
         return {"drive_file_id": ""}
 
-workflow.add_node("drive_upload", drive_upload_node)
-workflow.add_edge("report", "drive_upload")
-workflow.add_edge("drive_upload", END)
+# --- Define the Graph ---
+workflow = StateGraph(DigestState)
 
+# Add the nodes
+workflow.add_node("curator", curator_node)
+workflow.add_node("insights", insights_node)
+workflow.add_node("summarizer", summarizer_node)
+workflow.add_node("report", report_node)
+workflow.add_node("calendar", calendar_node)
+workflow.add_node("drive_upload", drive_upload_node)
+
+# Define the flow: Start -> Curator -> Insights -> Summarizer -> Report -> Calendar -> Drive Upload -> End
+workflow.set_entry_point("curator")
+workflow.add_edge("curator", "insights")
+workflow.add_edge("insights", "summarizer")
+workflow.add_edge("summarizer", "report")
+workflow.add_edge("report", "calendar")
+workflow.add_edge("calendar", "drive_upload")
+workflow.add_edge("drive_upload", END)
 
 # Compile the graph
 app = workflow.compile()

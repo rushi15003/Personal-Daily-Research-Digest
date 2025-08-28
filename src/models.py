@@ -48,3 +48,4 @@ class DigestState(BaseModel):
     report_markdown: str = ""
     report_path: str = ""
     drive_file_id: str = ""
+    calendar_event_id: str = ""
