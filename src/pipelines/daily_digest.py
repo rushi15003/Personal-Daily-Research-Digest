@@ -19,6 +19,10 @@ def main():
     print(f"Number of Insight Records: {len(final_state.get('insights', []))}")
     if final_state.get('report_path'):
         print(f"Report: {final_state.get('report_path')}")
+    if final_state.get('calendar_event_id'):
+        print(f"Calendar Event: {final_state.get('calendar_event_id')}")
+    if final_state.get('drive_file_id'):
+        print(f"Drive File: {final_state.get('drive_file_id')}")
 
     summaries = final_state.get('summaries', [])
     articles = final_state.get('articles', [])
