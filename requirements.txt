@@ -10,6 +10,9 @@ httpx
 python-dotenv
 lxml_html_clean
 
+# Web Framework
+flask
+flask-cors
 
 # Data Handling & Validation
 pydantic

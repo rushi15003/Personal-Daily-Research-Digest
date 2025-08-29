@@ -11,9 +11,7 @@ from google.auth.transport.requests import Request
 
 load_dotenv()
 
-
 SCOPES = ["https://www.googleapis.com/auth/drive.file"]
-
 
 class DriveUploadAgent:
     """Uploads generated reports to a Google Drive folder.
@@ -30,18 +28,33 @@ class DriveUploadAgent:
         creds = None
         if os.path.exists(self.token_path):
             creds = Credentials.from_authorized_user_file(self.token_path, SCOPES)
+            # Check if the token has all required scopes
+            if creds and creds.scopes:
+                required_scopes = set(SCOPES)
+                token_scopes = set(creds.scopes)
+                if not required_scopes.issubset(token_scopes):
+                    print("⚠️ Token missing required scopes. Re-authenticating...")
+                    creds = None  # Force re-authentication
+        
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
+                try:
+                    creds.refresh(Request())
+                except Exception:
+                    # If refresh fails, force re-authentication
+                    creds = None
+            
+            if not creds:
                 if not os.path.exists(self.credentials_path):
                     raise FileNotFoundError(
                         f"Google OAuth client secrets not found at {self.credentials_path}."
                     )
+                print("🔐 Starting Google OAuth flow for Drive access...")
                 flow = InstalledAppFlow.from_client_secrets_file(self.credentials_path, SCOPES)
                 creds = flow.run_local_server(port=0)
-            with open(self.token_path, "w") as token:
-                token.write(creds.to_json())
+                with open(self.token_path, "w") as token:
+                    token.write(creds.to_json())
+        
         return build("drive", "v3", credentials=creds)
 
     def upload_report(self, file_path: str, drive_folder_id: Optional[str] = None) -> Optional[str]:
