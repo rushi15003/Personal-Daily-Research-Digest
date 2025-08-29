@@ -23,7 +23,9 @@ def curator_node(state: DigestState) -> dict:
     print("🤖 Curator Agent Working...")
     print("="*30)
     
-    articles = curator_agent.fetch_articles(state.query, max_articles=1)
+    # Get max_articles from state, default to 5 if not specified
+    max_articles = getattr(state, 'max_articles', 5)
+    articles = curator_agent.fetch_articles(state.query, max_articles=max_articles)
     return {"articles": articles}
 
 def insights_node(state: DigestState) -> dict:
@@ -162,10 +164,10 @@ workflow.add_edge("drive_upload", END)
 # Compile the graph
 app = workflow.compile()
 
-def run_digest_pipeline(query: str = "AI news") -> DigestState:
+def run_digest_pipeline(query: str = "AI news", max_articles: int = 5) -> DigestState:
     """Runs the compiled graph with an initial state."""
     print("🎯 Initializing LangGraph Workflow...")
-    initial_state = DigestState(query=query)
+    initial_state = DigestState(query=query, max_articles=max_articles)
     final_state = app.invoke(initial_state)
     print("\n✅ Pipeline execution complete!")
     return final_state

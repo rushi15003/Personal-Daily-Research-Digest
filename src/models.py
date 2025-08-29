@@ -35,6 +35,7 @@ class DigestState(BaseModel):
     """The shared state for the daily digest workflow."""
     # The input from the user/trigger
     query: str = "top technology news"
+    max_articles: int = 5
     
     # The messages represent the sequence of events and results (for debugging/observability)
     messages: Annotated[list, add_messages] = Field(default_factory=list)
